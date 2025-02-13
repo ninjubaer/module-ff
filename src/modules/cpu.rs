@@ -44,7 +44,7 @@ impl Cpu {
         system.refresh_cpu_all();
         Cpu { system }
     }
-    pub fn cpu_usage(&mut self) -> f32 {
+    pub fn cpu_usage(&mut self) -> String {
         let mut idle = FILETIME {
             dw_low_date_time: 0,
             dw_high_date_time: 0,
@@ -72,8 +72,8 @@ impl Cpu {
         let idle_time_diff = idle_time
             - FILE_TIMES.idle_time.dw_high_date_time as u64
             - FILE_TIMES.idle_time.dw_low_date_time as u64;
-        let cpu_usage = 100.0 * (total_time_diff - idle_time_diff) as f64 / total_time_diff as f64;
-        cpu_usage as f32
+        let cpu_usage = format!("{:.1}%",100.0 * (total_time_diff - idle_time_diff) as f64 / total_time_diff as f64);
+        cpu_usage
     }
     pub fn name(&self) -> String {
         self.system.cpus()[0].brand().trim().to_string()

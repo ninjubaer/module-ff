@@ -17,12 +17,14 @@ pub fn import_config() -> serde_json::Value {
                     "from": 0xffffff,
                     "to": 0x000000
                 },
-                "headers": 0xffffff,
-                "text": 0xffffff,
+                "headers": 0x9FA1C9,
+                "text": {"key":0xF5C2E7,"value":0x75AFFA},
+                "width": 0.5,
+                "align": "left"
             },
             "modules": [
                 {
-                    "name": "cpu",
+                    "name": "CPU",
                     "icon": "f4bc",
                     "stats": [
                         "name",
