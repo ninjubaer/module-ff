@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use regex::Regex;
 use crossterm::terminal::size as terminal_size;
+use unicode_width::UnicodeWidthStr;
 pub struct Format {}
 impl Format {
     pub fn center(width: u32, text: &str) -> String {
@@ -41,7 +42,8 @@ impl Format {
     }
     fn strlen_no_color(text: &str) -> u32 {
         let re = Regex::new(r"\x1b\[[\d;]*m").unwrap();
-        re.replace_all(text, "").len() as u32
+        let text = re.replace_all(text, "");
+        text.width() as u32
     }
     fn pad(str: &mut String, padding: u32) {
         for _ in 0..padding {

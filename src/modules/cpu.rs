@@ -1,40 +1,7 @@
-use lazy_static::lazy_static;
+#![allow(dead_code)]
 use sysinfo::System;
 use crate::modules::module_trait::Module;
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct FILETIME {
-    pub dw_low_date_time: u32,
-    pub dw_high_date_time: u32,
-}
-extern "system" {
-    fn GetSystemTimes(
-        lpIdleTime: *mut FILETIME,
-        lpKernelTime: *mut FILETIME,
-        lpUserTime: *mut FILETIME,
-    ) -> i32;
-}
-pub struct FileTimes {
-    pub idle_time: FILETIME,
-    pub kernel_time: FILETIME,
-    pub user_time: FILETIME,
-}
-lazy_static! {
-    #[derive(Debug)]
-    pub static ref FILE_TIMES: FileTimes = {
-        let mut idle = FILETIME { dw_low_date_time: 0, dw_high_date_time: 0 };
-        let mut kernel = FILETIME { dw_low_date_time: 0, dw_high_date_time: 0 };
-        let mut user = FILETIME { dw_low_date_time: 0, dw_high_date_time: 0 };
-        unsafe {
-            GetSystemTimes(&mut idle, &mut kernel, &mut user);
-        }
-        FileTimes {
-            idle_time: idle,
-            kernel_time: kernel,
-            user_time: user,
-        }
-    };
-}
+
 pub struct Cpu {
     system: System,
 }
@@ -45,34 +12,10 @@ impl Cpu {
         Cpu { system }
     }
     pub fn cpu_usage(&mut self) -> String {
-        let mut idle = FILETIME {
-            dw_low_date_time: 0,
-            dw_high_date_time: 0,
-        };
-        let mut kernel = FILETIME {
-            dw_low_date_time: 0,
-            dw_high_date_time: 0,
-        };
-        let mut user = FILETIME {
-            dw_low_date_time: 0,
-            dw_high_date_time: 0,
-        };
-        unsafe {
-            GetSystemTimes(&mut idle, &mut kernel, &mut user);
-        }
-        let kernel_time = (kernel.dw_high_date_time as u64) << 32 | kernel.dw_low_date_time as u64;
-        let user_time = (user.dw_high_date_time as u64) << 32 | user.dw_low_date_time as u64;
-        let idle_time = (idle.dw_high_date_time as u64) << 32 | idle.dw_low_date_time as u64;
-        let total_time = kernel_time + user_time;
-        let total_time_diff = total_time
-            - FILE_TIMES.kernel_time.dw_high_date_time as u64
-            - FILE_TIMES.kernel_time.dw_low_date_time as u64
-            + FILE_TIMES.user_time.dw_high_date_time as u64
-            + FILE_TIMES.user_time.dw_low_date_time as u64;
-        let idle_time_diff = idle_time
-            - FILE_TIMES.idle_time.dw_high_date_time as u64
-            - FILE_TIMES.idle_time.dw_low_date_time as u64;
-        let cpu_usage = format!("{:.1}%",100.0 * (total_time_diff - idle_time_diff) as f64 / total_time_diff as f64);
+        self.system.refresh_cpu_usage();
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        self.system.refresh_cpu_usage();
+        let cpu_usage: String = format!("{:.1}%", self.system.global_cpu_usage());
         cpu_usage
     }
     pub fn name(&self) -> String {
@@ -93,19 +36,18 @@ impl Cpu {
     pub fn vendor(&self) -> String {
         self.system.cpus()[0].vendor_id().to_string()
     }
-    pub fn handle(&self, cpu_module: &Vec<serde_json::Value>) -> Vec<std::collections::HashMap<String, String>> {
-        let mut cpu = Cpu::new();
+    pub fn handle(&mut self, cpu_module: &Vec<serde_json::Value>) -> Vec<std::collections::HashMap<String, String>> {
         let mut cpu_stats: Vec<std::collections::HashMap<String, String>> = Vec::new();
         for stat in cpu_module {
             let mut stat_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
             stat_map.insert(stat.as_str().unwrap().to_string(), match stat.as_str().unwrap() {
-                "name" => cpu.name(),
-                "cores" => cpu.cores().to_string(),
-                "threads" => cpu.threads().to_string(),
-                "speed" => cpu.frequency().to_string(),
-                "usage" => cpu.cpu_usage().to_string(),
-                "vendor" => cpu.vendor(),
-                "architecture" => cpu.architecture(),
+                "name" => self.name(),
+                "cores" => self.cores().to_string(),
+                "threads" => self.threads().to_string(),
+                "speed" => self.frequency().to_string(),
+                "usage" => self.cpu_usage().to_string(),
+                "vendor" => self.vendor(),
+                "architecture" => self.architecture(),
                 _ => "".to_string()
             });
             cpu_stats.push(stat_map);
@@ -115,6 +57,6 @@ impl Cpu {
 }
 impl Module for Cpu {
     fn handle(&mut self, module: &Vec<serde_json::Value>) -> Vec<std::collections::HashMap<String, String>> {
-        Cpu::handle(&self, module)
+        Cpu::handle(self, module)
     }
 }
